@@ -14,8 +14,8 @@ import java.util.Locale
 import kotlin.math.min
 
 /**
- * Zeichnet die Uhr in drei Stilen:
- * 0 = Digital, 1 = Analog, 2 = Gestapelt (Stunde über Minute).
+ * Zeichnet die Uhr in drei Stilen: 0 = Digital, 1 = Analog, 2 = Gestapelt.
+ * Schriftstärke: 0 = Dünn, 1 = Normal, 2 = Fett.
  */
 class ClockFaceView @JvmOverloads constructor(
     context: Context,
@@ -28,6 +28,10 @@ class ClockFaceView @JvmOverloads constructor(
         set(value) { field = value; invalidate() }
     var showSeconds: Boolean = false
         set(value) { field = value; invalidate() }
+    var showDate: Boolean = true
+        set(value) { field = value; invalidate() }
+    var weight: Int = 0
+        set(value) { field = value; invalidate() }
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val dateFormat = SimpleDateFormat("EEEE, d. MMMM", Locale.getDefault())
@@ -39,6 +43,15 @@ class ClockFaceView @JvmOverloads constructor(
         }
     }
 
+    /** Übernimmt alle gespeicherten Uhr-Einstellungen. */
+    fun loadPrefs() {
+        style = Prefs.getInt(context, Prefs.CLOCK_STYLE, 0)
+        clockColor = Prefs.clockColor(context)
+        showSeconds = Prefs.getBool(context, Prefs.CLOCK_SECONDS, false)
+        showDate = Prefs.getBool(context, Prefs.CLOCK_DATE, true)
+        weight = Prefs.getInt(context, Prefs.CLOCK_WEIGHT, 0)
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         post(ticker)
@@ -47,6 +60,12 @@ class ClockFaceView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         removeCallbacks(ticker)
         super.onDetachedFromWindow()
+    }
+
+    private fun face(): Typeface = when (weight) {
+        0 -> Typeface.create("sans-serif-light", Typeface.NORMAL)
+        2 -> Typeface.create("sans-serif", Typeface.BOLD)
+        else -> Typeface.create("sans-serif", Typeface.NORMAL)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -77,20 +96,23 @@ class ClockFaceView @JvmOverloads constructor(
     private fun drawDigital(canvas: Canvas, cal: Calendar, hh: Int, mm: Int, ss: Int) {
         val txt = if (showSeconds) "%02d:%02d:%02d".format(hh, mm, ss) else "%02d:%02d".format(hh, mm)
         paint.textAlign = Paint.Align.CENTER
-        paint.typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
+        paint.typeface = face()
         paint.textSize = 100f
         val base = paint.measureText(txt)
         val size = min(100f * width * 0.9f / base, height * 0.5f)
         paint.textSize = size
-        drawCentered(canvas, txt, width / 2f, height * 0.42f)
+        val cy = if (showDate) height * 0.42f else height * 0.5f
+        drawCentered(canvas, txt, width / 2f, cy)
 
-        paint.textSize = size * 0.22f
-        drawCentered(canvas, dateFormat.format(cal.time), width / 2f, height * 0.42f + size * 0.7f)
+        if (showDate) {
+            paint.textSize = size * 0.22f
+            drawCentered(canvas, dateFormat.format(cal.time), width / 2f, cy + size * 0.7f)
+        }
     }
 
     private fun drawStacked(canvas: Canvas, hh: Int, mm: Int) {
         paint.textAlign = Paint.Align.CENTER
-        paint.typeface = Typeface.create("sans-serif", Typeface.BOLD)
+        paint.typeface = face()
         paint.textSize = 100f
         val base = paint.measureText("00")
         val size = min(100f * width * 0.7f / base, height * 0.42f)
@@ -104,25 +126,26 @@ class ClockFaceView @JvmOverloads constructor(
         val cx = width / 2f
         val cy = height / 2f
         val r = min(width, height) / 2f * 0.9f
+        val thick = when (weight) { 0 -> 0.7f; 2 -> 1.5f; else -> 1f }
 
         paint.style = Paint.Style.STROKE
         paint.strokeCap = Paint.Cap.ROUND
-        paint.strokeWidth = r * 0.025f
+        paint.strokeWidth = r * 0.025f * thick
         canvas.drawCircle(cx, cy, r, paint)
 
         for (i in 0 until 12) {
             canvas.save()
             canvas.rotate(i * 30f, cx, cy)
             val len = if (i % 3 == 0) r * 0.12f else r * 0.06f
-            paint.strokeWidth = if (i % 3 == 0) r * 0.035f else r * 0.02f
+            paint.strokeWidth = (if (i % 3 == 0) r * 0.035f else r * 0.02f) * thick
             canvas.drawLine(cx, cy - r + r * 0.06f, cx, cy - r + r * 0.06f + len, paint)
             canvas.restore()
         }
 
         val hourAngle = ((cal.get(Calendar.HOUR) % 12) + mm / 60f) * 30f
         val minAngle = (mm + ss / 60f) * 6f
-        hand(canvas, cx, cy, hourAngle, r * 0.5f, r * 0.06f)
-        hand(canvas, cx, cy, minAngle, r * 0.75f, r * 0.04f)
+        hand(canvas, cx, cy, hourAngle, r * 0.5f, r * 0.06f * thick)
+        hand(canvas, cx, cy, minAngle, r * 0.75f, r * 0.04f * thick)
 
         if (showSeconds) {
             paint.color = 0xFFFF5252.toInt()

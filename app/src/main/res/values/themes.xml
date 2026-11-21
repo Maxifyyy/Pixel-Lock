@@ -2,11 +2,10 @@
 <resources>
     <style name="Theme.PixelLock" parent="Theme.Material3.DayNight.NoActionBar" />
 
-    <style name="Theme.PixelLock.Home">
+    <style name="Theme.PixelLock.Home" parent="Theme.PixelLock">
         <item name="android:windowShowWallpaper">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

@@ -1,100 +1,102 @@
 package de.pixellock
 
-import android.content.Intent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.View
 import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.materialswitch.MaterialSwitch
+import android.widget.Toast
 
-/** Modul „ClockFace“: Stil und Farbe der Uhr wählen, mit Live-Vorschau. */
-class ClockSettingsActivity : AppCompatActivity() {
+/** Modul „ClockFace“: Stil, Schrift und Farbe der Uhr, mit Live-Vorschau. */
+class ClockSettingsActivity : BasePage() {
 
     private val colors = intArrayOf(
+        0, // Systemfarbe
         Color.WHITE,
-        0xFFFFD54F.toInt(), // Gelb
-        0xFFFF8A65.toInt(), // Orange
-        0xFFF06292.toInt(), // Pink
-        0xFFBA68C8.toInt(), // Lila
-        0xFF64B5F6.toInt(), // Blau
-        0xFF4DD0E1.toInt(), // Türkis
-        0xFF81C784.toInt()  // Grün
+        0xFFFFD54F.toInt(),
+        0xFFFF8A65.toInt(),
+        0xFFF06292.toInt(),
+        0xFFBA68C8.toInt(),
+        0xFF64B5F6.toInt(),
+        0xFF4DD0E1.toInt(),
+        0xFF81C784.toInt()
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val page = scrollPage("Uhr-Stile")
+        val page = scrollPage("ClockFace")
 
         val preview = ClockFaceView(this).apply {
-            setBackgroundColor(Color.BLACK)
+            background = GradientDrawable().apply {
+                setColor(Color.BLACK)
+                cornerRadius = dp(28).toFloat()
+            }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(220)
-            ).apply { bottomMargin = dp(16) }
-            style = Prefs.getInt(this@ClockSettingsActivity, Prefs.CLOCK_STYLE, 0)
-            clockColor = Prefs.getInt(this@ClockSettingsActivity, Prefs.CLOCK_COLOR, Color.WHITE)
-            showSeconds = Prefs.getBool(this@ClockSettingsActivity, Prefs.CLOCK_SECONDS, false)
+            ).apply { bottomMargin = dp(12) }
+            loadPrefs()
         }
         page.addView(preview)
 
-        // Stil
-        val group = RadioGroup(this)
-        listOf("Digital", "Analog", "Gestapelt").forEachIndexed { i, name ->
-            group.addView(RadioButton(this).apply {
-                id = View.generateViewId()
-                text = name
-                isChecked = preview.style == i
-                setOnClickListener {
-                    preview.style = i
-                    Prefs.putInt(this@ClockSettingsActivity, Prefs.CLOCK_STYLE, i)
+        page.addView(Ui.section(this, "Aussehen"))
+        page.addView(Ui.group(this, listOf(
+            Ui.chipRow(this, "Stil", listOf("Digital", "Analog", "Gestapelt"), preview.style) {
+                preview.style = it
+                Prefs.putInt(this, Prefs.CLOCK_STYLE, it)
+                refreshWidgets()
+            },
+            Ui.chipRow(this, "Schrift", listOf("Dünn", "Normal", "Fett"), preview.weight) {
+                preview.weight = it
+                Prefs.putInt(this, Prefs.CLOCK_WEIGHT, it)
+            },
+            Ui.colorRow(
+                this, "Farbe", "Der erste Punkt folgt deinen Systemfarben (Android 12+).",
+                colors, Prefs.getInt(this, Prefs.CLOCK_COLOR, Color.WHITE),
+                resolve = { c ->
+                    if (c == 0) {
+                        if (android.os.Build.VERSION.SDK_INT >= 31)
+                            getColor(android.R.color.system_accent1_200) else Color.WHITE
+                    } else c
                 }
-            })
-        }
-        page.addView(group)
-
-        // Sekunden
-        page.addView(MaterialSwitch(this).apply {
-            text = "Sekunden anzeigen"
-            isChecked = preview.showSeconds
-            setPadding(0, dp(8), 0, dp(8))
-            setOnCheckedChangeListener { _, checked ->
-                preview.showSeconds = checked
-                Prefs.putBool(this@ClockSettingsActivity, Prefs.CLOCK_SECONDS, checked)
+            ) {
+                Prefs.putInt(this, Prefs.CLOCK_COLOR, it)
+                preview.clockColor = Prefs.clockColor(this)
+                refreshWidgets()
             }
-        })
+        )))
 
-        // Farben
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(8), 0, dp(16))
-        }
-        for (col in colors) {
-            row.addView(View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
-                    marginEnd = dp(8)
-                }
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(col)
-                    setStroke(dp(1), 0x55888888)
-                }
-                setOnClickListener {
-                    preview.clockColor = col
-                    Prefs.putInt(this@ClockSettingsActivity, Prefs.CLOCK_COLOR, col)
-                }
-            })
-        }
-        page.addView(row)
-
-        page.addView(MaterialButton(this).apply {
-            text = "Sperr-Uhr starten"
-            setOnClickListener {
-                startActivity(Intent(this@ClockSettingsActivity, LockClockActivity::class.java))
+        page.addView(Ui.section(this, "Anzeige"))
+        page.addView(Ui.group(this, listOf(
+            Ui.switchRow(this, "Sekunden", "Auch auf dem Startbildschirm und der Sperr-Uhr",
+                preview.showSeconds) {
+                preview.showSeconds = it
+                Prefs.putBool(this, Prefs.CLOCK_SECONDS, it)
+            },
+            Ui.switchRow(this, "Datum", "Unter der digitalen Uhr anzeigen", preview.showDate) {
+                preview.showDate = it
+                Prefs.putBool(this, Prefs.CLOCK_DATE, it)
             }
-        })
+        )))
+
+        page.addView(Ui.section(this, "Widget"))
+        page.addView(Ui.group(this, listOf(
+            Ui.actionRow(this, "Uhr-Widget hinzufügen", "Auf dem Startbildschirm platzieren") {
+                addWidget()
+            }
+        )))
+    }
+
+    private fun refreshWidgets() = ClockWidgetProvider.refresh(this)
+
+    private fun addWidget() {
+        val mgr = AppWidgetManager.getInstance(this)
+        if (mgr.isRequestPinAppWidgetSupported) {
+            mgr.requestPinAppWidget(ComponentName(this, ClockWidgetProvider::class.java), null, null)
+        } else {
+            Toast.makeText(
+                this, "Halte den Startbildschirm gedrückt → Widgets → PixelLock", Toast.LENGTH_LONG
+            ).show()
+        }
     }
 }

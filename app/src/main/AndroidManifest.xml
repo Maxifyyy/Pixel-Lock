@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
     <queries>
         <intent>
@@ -11,11 +13,14 @@
     </queries>
 
     <application
+        android:name=".App"
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="PixelLock"
+        android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/Theme.PixelLock">
 
-        <!-- Hub: Einstieg in alle Module -->
+        <!-- Hub: Make up / Life up -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -25,7 +30,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Modul 1: Launcher (Home Up) -->
+        <!-- Home Up: Startbildschirm -->
         <activity
             android:name=".HomeActivity"
             android:exported="true"
@@ -38,22 +43,50 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <activity android:name=".LauncherSettingsActivity" />
+        <activity android:name=".HomeSettingsActivity" />
 
-        <!-- Modul 2: Uhr-Stile (ClockFace) -->
+        <!-- ClockFace -->
         <activity android:name=".ClockSettingsActivity" />
 
-        <!-- Modul 3: Sperr-Uhr (Always-on-Uhr, auch bei gesperrtem Gerät) -->
+        <!-- LockStar -->
+        <activity android:name=".LockSettingsActivity" />
         <activity
             android:name=".LockClockActivity"
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
-        <!-- Uhr-Widget für den Startbildschirm -->
+        <service
+            android:name=".LockClockTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_lock"
+            android:label="Sperr-Uhr"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- NotiStar -->
+        <activity android:name=".NotiStarActivity" />
+        <service
+            android:name=".NotiListener"
+            android:exported="true"
+            android:label="PixelLock NotiStar"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Theme Park -->
+        <activity android:name=".ThemeParkActivity" />
+
+        <!-- Uhr-Widget -->
         <receiver
             android:name=".ClockWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="Uhr">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
